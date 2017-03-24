@@ -5,6 +5,7 @@
 #include <RcppArmadillo.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <iostream>
 
 double quantileCpp(arma::vec x, double probs) {
     Rcpp::Environment stats("package:stats");
@@ -80,7 +81,7 @@ bool skipDownConn(arma::mat deOmega, arma::mat bootStats, double alpha, int numC
         
         //build the critical set
         for(int i = 0; i < v; i++) {
-            for(int j=0; j < v; j++) {
+            for(int j= i + 1; j < v; j++) {
                 if(!components.connected(i,j)) {
                     array<int,2> edge = {i,j};
                     critical.push_back(edge);
@@ -143,7 +144,7 @@ arma::vec skipDownConnCI (arma::mat deOmega, arma::mat bootStats, double alpha) 
 
         //build the critical set
         for(int i = 0; i < v; i++) {
-            for(int j=0; j < v; j++) {
+            for(int j = i + 1; j < v; j++) {
                 if(!components.connected(i,j)) {
                     array<int,2> edge = {i,j};
                     critical.push_back(edge);
@@ -151,17 +152,17 @@ arma::vec skipDownConnCI (arma::mat deOmega, arma::mat bootStats, double alpha) 
             }
         }
         
-       
+      
         
         arma::uvec cols(bootStats.n_cols,arma::fill::zeros);
-
+        
         bool edited = false;
 
         //build the rejected set
         for(int i = 0; i < critical.size(); i++) {
             int e_i = critical[i][0];
             int e_j = critical[i][1];
-
+            cols(0) = 1;
             cols(edgeNum(e_i,e_j)) = 1;
         }
 
@@ -211,11 +212,147 @@ arma::vec skipDownChainCI (arma::mat deOmega, arma::mat bootStats, double alpha)
 
 // [[Rcpp::export]]
 bool skipDownDeg (arma::mat deOmega, arma::mat bootStats, double alpha , int k) {
-    return false;
+    int v = deOmega.n_cols;
+    int maxDegree = 0;
+    arma::vec degrees = arma::zeros<arma::vec>(v);
+    arma::mat edges = arma::zeros<arma::mat>(v,v);
+    arma::vec na = arma::zeros<arma::vec>(bootStats.n_rows);
+    
+    
+    while(true) {
+        vector <array<int, 2> > critical;
+        
+        //build the critical set
+        for(int i = 0; i < v; i++) {
+            for(int j= i + 1; j < v; j++) {
+                if(!edges(i,j)) {
+                    array<int,2> edge = {i,j};
+                    critical.push_back(edge);
+                }
+            }
+        }
+        
+        arma::uvec cols(bootStats.n_cols,arma::fill::zeros);
+        
+        bool edited = false;
+        
+        //build the rejected set
+        for(int i = 0; i < critical.size(); i++) {
+            int e_i = critical[i][0];
+            int e_j = critical[i][1];
+            
+            cols(edgeNum(e_i,e_j)) = 1;
+        }
+        
+        arma::mat bootFilt = bootStats;
+        
+        for(int i = 0; i < bootFilt.n_cols; i++) {
+            if(!cols(i)) {bootFilt.col(i) = na;}
+        }
+        
+        arma::vec maxes(bootFilt.n_rows);
+        
+        for(int i = 0; i < maxes.size(); i++) {
+            maxes(i) = arma::abs(bootFilt.row(i)).max();
+        }
+        
+        double statsMM = quantileCpp(maxes,1-alpha);
+        for(int i = 0; i < critical.size(); i++) {
+            int e_i = critical[i][0];
+            int e_j = critical[i][1];
+            
+            if(abs(deOmega(e_i,e_j)) > statsMM) {
+                edited = true;
+                edges(e_i,e_j) = 1;
+                degrees(e_i) += 1;
+                degrees(e_j) += 1;
+                maxDegree = degrees(e_i) > maxDegree ? degrees(e_i):maxDegree;
+                maxDegree = degrees(e_j) > maxDegree ? degrees(e_j):maxDegree;
+                
+                if(maxDegree > k) {return false;}
+            }
+        }
+        
+        if(!edited) {return maxDegree <= k;}
+    }
+    
+    return true;
 }
 
 // [[Rcpp::export]]
 arma::vec skipDownDegCI (arma::mat deOmega, arma::mat bootStats, double alpha) {
+    int v = deOmega.n_cols;
+    int maxDegree = 0;
+    arma::vec na = arma::zeros<arma::vec>(bootStats.n_rows);
+    arma::vec gen = arma::randu<arma::vec>(1);
+    arma::vec degrees = arma::zeros<arma::vec>(v);
+    arma::mat edges = arma::zeros<arma::mat>(v,v);
+
+    bool upper = gen(0) > 1 - alpha/2;
+    
+    while(true) {
+        vector < array<int, 2> > critical;
+        
+        //build the critical set
+        for(int i = 0; i < v; i++) {
+            for(int j = i + 1; j < v; j++) {
+                if(!edges(i,j)) {
+                    array<int,2> edge = {i,j};
+                    critical.push_back(edge);
+                }
+            }
+        }
+        
+        
+        
+        arma::uvec cols(bootStats.n_cols,arma::fill::zeros);
+        
+        bool edited = false;
+        
+        //build the rejected set
+        for(int i = 0; i < critical.size(); i++) {
+            
+            int e_i = critical[i][0];
+            int e_j = critical[i][1];
+            
+            cols(edgeNum(e_i,e_j)) = 1;
+        }
+        
+        arma::mat bootFilt = bootStats;
+        
+        for(int i = 0; i < bootFilt.n_cols; i++) {
+            if(!cols(i)) {bootFilt.col(i) = na;}
+        }
+        
+        arma::vec maxes(bootFilt.n_rows);
+        
+        for(int i = 0; i < maxes.size(); i++) {
+            maxes(i) = arma::abs(bootFilt.row(i)).max();
+        }
+        
+        double statsMM = quantileCpp(maxes, 1 - alpha/2);
+        for(int i = 0; i < critical.size(); i++) {
+            int e_i = critical[i][0];
+            int e_j = critical[i][1];
+            
+            if(abs(deOmega(e_i,e_j)) > statsMM) {
+                edited = true;
+                edges(e_i,e_j) = 1;
+                degrees(e_i) += 1;
+                degrees(e_j) += 1;
+                maxDegree = degrees(e_i) > maxDegree ? degrees(e_i):maxDegree;
+                maxDegree = degrees(e_j) > maxDegree ? degrees(e_j):maxDegree;
+            }
+        }
+        
+        if(!edited || maxDegree == v-1) {
+            arma::vec CI = arma::zeros<arma::vec>(2);
+            CI(0) = maxDegree;
+            CI(1) = upper ? CI(0) : 0;
+            return CI;
+        }
+    }
+    
     return arma::zeros<arma::vec>(2);
 }
 
@@ -241,11 +378,150 @@ arma::vec skipDownChromCI (arma::mat deOmega, arma::mat bootStats, double alpha)
 
 // [[Rcpp::export]]
 bool skipDownSingle (arma::mat deOmega, arma::mat bootStats, double alpha , int k) {
-    return false;
+    int v = deOmega.n_cols;
+    arma::vec singletons = arma::ones<arma::vec>(v);
+    arma::vec na = arma::zeros<arma::vec>(bootStats.n_rows);
+    int numSingletons = v;
+    
+    while(true) {
+        vector <array<int, 2> > critical;
+        
+        //build the critical set
+        for(int i = 0; i < v; i++) {
+            for(int j= i + 1; j < v; j++) {
+                if(singletons(i) || singletons(j)) {
+                    array<int,2> edge = {i,j};
+                    critical.push_back(edge);
+                }
+            }
+        }
+        
+        arma::uvec cols(bootStats.n_cols,arma::fill::zeros);
+        
+        bool edited = false;
+        
+        //build the rejected set
+        for(int i = 0; i < critical.size(); i++) {
+            int e_i = critical[i][0];
+            int e_j = critical[i][1];
+            
+            cols(edgeNum(e_i,e_j)) = 1;
+        }
+        
+        arma::mat bootFilt = bootStats;
+        
+        for(int i = 0; i < bootFilt.n_cols; i++) {
+            if(!cols(i)) {bootFilt.col(i) = na;}
+        }
+        
+        arma::vec maxes(bootFilt.n_rows);
+        
+        for(int i = 0; i < maxes.size(); i++) {
+            maxes(i) = arma::abs(bootFilt.row(i)).max();
+        }
+        
+        double statsMM = quantileCpp(maxes,1-alpha);
+        for(int i = 0; i < critical.size(); i++) {
+            int e_i = critical[i][0];
+            int e_j = critical[i][1];
+            
+            if(abs(deOmega(e_i,e_j)) > statsMM) {
+                edited = true;
+                if (singletons(e_i)) {
+                    singletons(e_i) = 0;
+                    numSingletons-= 1;
+                }
+                
+                if (singletons(e_j)) {
+                    singletons(e_j) = 0;
+                    numSingletons-= 1;
+                }
+                if(numSingletons <= k) {return true;}
+            }
+        }
+        
+        if(!edited) {return arma::sum(singletons) <= k;}
+    }
+    
+    return true;
 }
 
 // [[Rcpp::export]]
 arma::vec skipDownSingleCI (arma::mat deOmega, arma::mat bootStats, double alpha) {
+    int v = deOmega.n_cols;
+    arma::vec na = arma::zeros<arma::vec>(bootStats.n_rows);
+    arma::vec gen = arma::randu<arma::vec>(1);
+    arma::vec singletons = arma::ones<arma::vec>(v);
+    int numSingletons = v;
+    bool upper = gen(0) > 1 - alpha/2;
+
+    while(true) {
+        vector < array<int, 2> > critical;
+        
+        //build the critical set
+        for(int i = 0; i < v; i++) {
+            for(int j = i + 1; j < v; j++) {
+                if(singletons(i) || singletons(j)) {
+                    array<int,2> edge = {i,j};
+                    critical.push_back(edge);
+                }
+            }
+        }
+        
+        
+        
+        arma::uvec cols(bootStats.n_cols,arma::fill::zeros);
+        
+        bool edited = false;
+        
+        //build the rejected set
+        for(int i = 0; i < critical.size(); i++) {
+            
+            int e_i = critical[i][0];
+            int e_j = critical[i][1];
+
+            cols(edgeNum(e_i,e_j)) = 1;
+        }
+        
+        arma::mat bootFilt = bootStats;
+        
+        for(int i = 0; i < bootFilt.n_cols; i++) {
+            if(!cols(i)) {bootFilt.col(i) = na;}
+        }
+        
+        arma::vec maxes(bootFilt.n_rows);
+        
+        for(int i = 0; i < maxes.size(); i++) {
+            maxes(i) = arma::abs(bootFilt.row(i)).max();
+        }
+        
+        double statsMM = quantileCpp(maxes, 1 - alpha/2);
+        for(int i = 0; i < critical.size(); i++) {
+            int e_i = critical[i][0];
+            int e_j = critical[i][1];
+            
+            if(abs(deOmega(e_i,e_j)) > statsMM) {
+                edited = true;
+                if (singletons(e_i)) {
+                    singletons(e_i) = 0;
+                    numSingletons-= 1;
+                }
+                
+                if (singletons(e_j)) {
+                    singletons(e_j) = 0;
+                    numSingletons-= 1;
+                }
+            }
+        }
+        
+        if(!edited || numSingletons == 0) {
+            arma::vec CI = arma::zeros<arma::vec>(2);
+            CI(0) = numSingletons;
+            CI(1) = upper ? CI(0) : 0;
+            return CI;
+        }
+    }
+    
     return arma::zeros<arma::vec>(2);
 }
 
@@ -275,8 +551,70 @@ bool skipDownBipar (arma::mat deOmega, arma::mat bootStats, double alpha , int k
 }
 
 // [[Rcpp::export]]
-bool skipDownCycle (arma::mat deOmega, arma::mat bootStats, double alpha , int k) {
-    return false;
+bool skipDownCycle (arma::mat deOmega, arma::mat bootStats, double alpha) {
+    int v = deOmega.n_cols;
+    UnionFind components = UnionFind(v);
+    arma::vec na = arma::zeros<arma::vec>(bootStats.n_rows);
+    arma::mat edges = arma::zeros<arma::mat>(v,v);
+    
+    while(true) {
+        vector <array<int, 2> > critical;
+        
+        //build the critical set
+        for(int i = 0; i < v; i++) {
+            for(int j= i + 1; j < v; j++) {
+                if(!edges(i,j)) {
+                    array<int,2> edge = {i,j};
+                    critical.push_back(edge);
+                }
+            }
+        }
+        
+        arma::uvec cols(bootStats.n_cols,arma::fill::zeros);
+        
+        bool edited = false;
+        
+        //build the rejected set
+        for(int i = 0; i < critical.size(); i++) {
+            int e_i = critical[i][0];
+            int e_j = critical[i][1];
+            
+            cols(edgeNum(e_i,e_j)) = 1;
+        }
+        
+        arma::mat bootFilt = bootStats;
+        
+        for(int i = 0; i < bootFilt.n_cols; i++) {
+            if(!cols(i)) {bootFilt.col(i) = na;}
+        }
+        
+        arma::vec maxes(bootFilt.n_rows);
+        
+        for(int i = 0; i < maxes.size(); i++) {
+            maxes(i) = arma::abs(bootFilt.row(i)).max();
+        }
+        
+        double statsMM = quantileCpp(maxes,1-alpha);
+        for(int i = 0; i < critical.size(); i++) {
+            int e_i = critical[i][0];
+            int e_j = critical[i][1];
+            
+            if(abs(deOmega(e_i,e_j)) > statsMM) {
+                edited = true;
+                if(!components.connected(e_i,e_j)){
+                components.connect(e_i,e_j);
+                edges(e_i,e_j) = 1;
+                }
+                else {
+                   return false;        
+                }
+            }
+        }
+        
+        if(!edited) {return true;}
+    }
+    
+    return true;
 }
 
 // [[Rcpp::export]]

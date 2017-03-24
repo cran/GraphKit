@@ -77,8 +77,8 @@ skipDownBipar <- function(deOmega, bootStats, alpha, k) {
     .Call('GraphKit_skipDownBipar', PACKAGE = 'GraphKit', deOmega, bootStats, alpha, k)
 }
 
-skipDownCycle <- function(deOmega, bootStats, alpha, k) {
-    .Call('GraphKit_skipDownCycle', PACKAGE = 'GraphKit', deOmega, bootStats, alpha, k)
+skipDownCycle <- function(deOmega, bootStats, alpha) {
+    .Call('GraphKit_skipDownCycle', PACKAGE = 'GraphKit', deOmega, bootStats, alpha)
 }
 
 stepDown <- function(stats, bootStats, alpha) {

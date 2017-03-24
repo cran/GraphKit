@@ -42,7 +42,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"GraphKit_skipDownCliqueCI", (DL_FUNC) &GraphKit_skipDownCliqueCI, 3},
     {"GraphKit_skipDownConn",     (DL_FUNC) &GraphKit_skipDownConn,     4},
     {"GraphKit_skipDownConnCI",   (DL_FUNC) &GraphKit_skipDownConnCI,   3},
-    {"GraphKit_skipDownCycle",    (DL_FUNC) &GraphKit_skipDownCycle,    4},
+    {"GraphKit_skipDownCycle",    (DL_FUNC) &GraphKit_skipDownCycle,    3},
     {"GraphKit_skipDownDeg",      (DL_FUNC) &GraphKit_skipDownDeg,      4},
     {"GraphKit_skipDownDegCI",    (DL_FUNC) &GraphKit_skipDownDegCI,    3},
     {"GraphKit_skipDownGirth",    (DL_FUNC) &GraphKit_skipDownGirth,    4},

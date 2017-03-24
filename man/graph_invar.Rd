@@ -29,8 +29,9 @@ Computes the confidence interval for a numeric invariant on an
 estimated conditional independence graph.
 }
 \examples{
-\dontrun{
+
 data(Xs,cov.hat,t.hat)
 graph_invar(x=Xs,sigmaHat=cov.hat,thetaHat=t.hat,invar="conn")
+
 }
-}
+

@@ -32,8 +32,9 @@ Computes the value of boolean property on an
 estimated conditional independence graph.
 }
 \examples{
-\dontrun{
+
 data(Xs,cov.hat,t.hat)
-graph_prop(x=Xs,sigmaHat=cov.hat,thetaHat=t.hat,prop="conn",k=20)
+graph_prop(x=Xs,sigmaHat=cov.hat,thetaHat=t.hat,prop="conn",k=5)
+
 }
-}
+

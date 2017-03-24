@@ -263,16 +263,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // skipDownCycle
-bool skipDownCycle(arma::mat deOmega, arma::mat bootStats, double alpha, int k);
-RcppExport SEXP GraphKit_skipDownCycle(SEXP deOmegaSEXP, SEXP bootStatsSEXP, SEXP alphaSEXP, SEXP kSEXP) {
+bool skipDownCycle(arma::mat deOmega, arma::mat bootStats, double alpha);
+RcppExport SEXP GraphKit_skipDownCycle(SEXP deOmegaSEXP, SEXP bootStatsSEXP, SEXP alphaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::mat >::type deOmega(deOmegaSEXP);
     Rcpp::traits::input_parameter< arma::mat >::type bootStats(bootStatsSEXP);
     Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
-    Rcpp::traits::input_parameter< int >::type k(kSEXP);
-    rcpp_result_gen = Rcpp::wrap(skipDownCycle(deOmega, bootStats, alpha, k));
+    rcpp_result_gen = Rcpp::wrap(skipDownCycle(deOmega, bootStats, alpha));
     return rcpp_result_gen;
 END_RCPP
 }
